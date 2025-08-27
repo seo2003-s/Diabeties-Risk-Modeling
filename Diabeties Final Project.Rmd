@@ -1,0 +1,701 @@
+---
+title: "Stat 171 Final Project"
+author: Eve Fraczkiewicz, Sai Shrinidi Krishnan, Seona Magdum, William Pham, Tianle
+  Qi
+date: "03/20/2025"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(aod)
+diabetes <- read.csv('Diabetes.csv')
+```
+
+## Data Cleaning
+```{r}
+#Checking for N/A values
+sum(is.na(diabetes))
+
+#Changing Gender from Male and Female to 0 and 1 respectively
+diabetes$Gender <- ifelse(diabetes$Gender == "Female", 1, 0)
+diabetes$Gender <- as.numeric(as.character(diabetes$Gender))
+```
+
+## Summary Statistics and EDA
+```{r}
+head(diabetes)
+summary(diabetes)
+
+hist(diabetes$Age, xlab = "Age", ylab = "Frequency", main = "Histogram of Age", col = "light blue")
+hist(diabetes$BMI, xlab = "BMI", ylab = "Frequency", main = "Histogram of BMI", col = "light blue")
+hist(diabetes$Cholesterol, xlab = "Cholesterol", ylab = "Frequency", main = "Histogram of Cholesterol", col = "light blue")
+hist(diabetes$Systolic_BP, xlab = "Systolic Blood Pressure", ylab = "Frequency", main = "Histogram of Systolic Blood Pressure", col = "light blue")
+hist(diabetes$Gender, xlab = "Gender", ylab = "Frequency", main = "Histogram of Gender", col = "light blue")
+hist(diabetes$Smoker, xlab = "Smoker", ylab = "Frequency", main = "Histogram of Smoker", col = "light blue")
+hist(diabetes$Family_History, xlab = "Family History", ylab = "Frequency", main = "Histogram of Family History", col = "light blue")
+hist(diabetes$Diabetes_Status, xlab = "Diabetes Status", ylab = "Frequency", main = "Histogram of Response Variable", col = "light blue")
+```
+
+```{r}
+#Plotting every predictor variable with respect to the response
+ggplot(diabetes, aes(x = Age, group = Diabetes_Status)) +
+  geom_histogram(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Histogram of Diabetes Status with Respect to Age", y = "Count", x = "Age", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = BMI, group = Diabetes_Status)) +
+  geom_histogram(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Histogram of Diabetes Status with Respect to BMI", y = "Count", x = "BMI", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = Cholesterol, group = Diabetes_Status)) +
+  geom_histogram(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Histogram of Diabetes Status with Respect to Cholesterol", y = "Count", x = "Cholesterol", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = Systolic_BP, group = Diabetes_Status)) +
+  geom_histogram(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Histogram of Diabetes Status with Respect to Systolic Blood Pressure", y = "Count", x = "Systolic Blood Pressure", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = Gender, group = Diabetes_Status)) +
+  geom_bar(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Bar Plot of Diabetes Status with Respect to Gender", y = "Count", x = "Gender", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = Smoker, group = Diabetes_Status)) +
+  geom_bar(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Bar Plot of Diabetes Status with Respect to Smoker", y = "Count", x = "Smoker", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = Physical_Activity, group = Diabetes_Status)) +
+  geom_bar(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Bar Plot of Diabetes Status with Respect to Physical Activity", y = "Count", x = "Physical Activity", fill = "Diabetes Status")
+
+ggplot(diabetes, aes(x = Family_History, group = Diabetes_Status)) +
+  geom_bar(aes(fill = factor(Diabetes_Status)), position = "stack") +
+  labs(title = "Bar Plot of Diabetes Status with Respect to Family History", y = "Count", x = "Family History", fill = "Diabetes Status")
+```
+
+## Linearity Test
+```{r}
+#Testing the linearity assumption for the numerical variables of the base model
+model <- glm(Diabetes_Status ~ Age + BMI + Cholesterol + Systolic_BP + Smoker + Physical_Activity + Family_History,
+             data = diabetes,
+             family = binomial)
+
+prob <- predict(model, type = "response")
+
+logit <- log(prob / (1 - prob))
+
+ggplot(diabetes, aes(x = Age, y = logit)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+
+ggplot(diabetes, aes(x = BMI, y = logit)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+
+ggplot(diabetes, aes(x = Cholesterol, y = logit)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = logit)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+```
+
+## Model Structure
+```{r}
+#Checking model structure for each pair of variables for any interactions
+diabetes$BMI_Factor = cut(diabetes$BMI, breaks = c(0, 18.5, 25, 30, Inf), labels = c("Underweight", "Normal", "Overweight", "Obese")) ### Breaking BMI into groups
+
+diabetes$Age_Factor = cut(diabetes$Age, breaks = c(0, 20, 40, 60, Inf), labels = c("0-20","20-40", "40-60", "60-80")) ### Breaking Age into groups
+
+diabetes$Systolic_Factor = cut(diabetes$Systolic_BP, breaks = c(0, 120, 129, 179, Inf), labels = c("Normal", "Elevated", "Hypertension", "Hypertensitive Crisis")) ### Breaking Systolic BP into groups
+
+diabetes$Cholesterol_Factor = cut(diabetes$Cholesterol, breaks = c(0, 200, 240, Inf), labels = c("Normal", "At Risk", "Dangerous")) ### Breaking Cholesterol into groups
+
+model <- glm(formula = Diabetes_Status ~ Age + Gender + BMI + Cholesterol + Systolic_BP + Smoker + Physical_Activity + Family_History, data = diabetes, family = "binomial")
+
+probabilities = predict(model, type = "response") ### getting probabilities to use in logit function
+
+logit = log(probabilities / (1 - probabilities)) ### logit of the data set
+```
+
+```{r}
+### Systolic BP Interaction Plots
+
+### Interaction of Systolic and Family History
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(Family_History))) +
+  geom_point(aes(shape = factor(Family_History)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and Family History", color = "Family History") +
+  theme_minimal()
+
+### Interaction of Systolic and Gender
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(Gender))) +
+  geom_point(aes(shape = factor(Gender)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and Gender", color = "Gender") +
+  theme_minimal()
+
+### Interaction of Systolic and Smoker
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(Smoker))) +
+  geom_point(aes(shape = factor(Smoker)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and Smoker", color = "Smoker") +
+  theme_minimal()
+
+### Interaction of Systolic and Physical Activity
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(Physical_Activity))) +
+  geom_point(aes(shape = factor(Physical_Activity)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and Physical Activity", color = "Physical Activity") +
+  theme_minimal()
+
+### Interaction of Systolic anad BMI
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(BMI_Factor))) +
+  geom_point(aes(shape = factor(BMI_Factor)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and BMI", color = "BMI Categories") +
+  theme_minimal()
+
+### Interaction of Systolic and Age
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(Age_Factor))) +
+  geom_point(aes(shape = factor(Age_Factor)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and Age", color = "Age Categories") +
+  theme_minimal()
+
+### Interaction of Systolic and Cholesterol
+ggplot(data = diabetes, aes(x = Systolic_BP, y = logit, color = factor(Cholesterol_Factor))) +
+  geom_point(aes(shape = factor(Cholesterol_Factor)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red")) + 
+  labs(x = "Systolic BP", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Systolic BP and Cholesterol", color = "Cholesterol Categories") +
+  theme_minimal()
+```
+
+```{r}
+### Cholesterol Interaction Plots
+
+### Interaction of Cholesterol and Smoker
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(Smoker))) +
+  geom_point(aes(shape = factor(Smoker)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and Smoker", color = "Smoker") +
+  theme_minimal()
+
+### Interaction of Cholesterol and Gender
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(Gender))) +
+  geom_point(aes(shape = factor(Gender)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and Gender", color = "Gender") +
+  theme_minimal()
+
+### Interaction of Cholesterol and Family History
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(Family_History))) +
+  geom_point(aes(shape = factor(Family_History)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and Family History", color = "Family History") +
+  theme_minimal()
+
+### Interaction of Cholesterol and Physical Activity
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(Physical_Activity))) +
+  geom_point(aes(shape = factor(Physical_Activity)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and Physical Activity", color = "Physical Activity") +
+  theme_minimal()
+
+### Interaction of Cholesterol and BMI
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(BMI_Factor))) +
+  geom_point(aes(shape = factor(BMI_Factor)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue", "red", "purple")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and BMI", color = "BMI Categories") +
+  theme_minimal()
+
+### Interaction of Cholesterol and Age
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(Age_Factor))) +
+  geom_point(aes(shape = factor(Age_Factor)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue", "red", "purple")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and Age", color = "Age Categories") +
+  theme_minimal()
+
+### Interaction of Cholesterol and Systolic
+ggplot(data = diabetes, aes(x = Cholesterol, y = logit, color = factor(Systolic_Factor))) +
+  geom_point(aes(shape = factor(Systolic_Factor)), alpha = 0.6) +  
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", span = 1, se = FALSE, linetype = "dashed") +  
+  scale_color_manual(values = c("green", "blue", "red", "purple")) +  
+  labs(x = "Cholesterol", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Cholesterol and Systolioc BP", color = "Systolic Categories") +
+  theme_minimal()
+```
+
+```{r}
+### BMI Interaction Plots
+
+### Interaction of BMI and Physical Activity
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Physical_Activity))) +
+  geom_point(aes(shape = factor(Physical_Activity)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Physical Activity", color = "Physical Activity") +
+  theme_minimal()
+
+### Interaction of BMI and Gender
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Gender))) +
+  geom_point(aes(shape = factor(Gender)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Gender", color = "Gender") +
+  theme_minimal()
+
+### Interaction of BMI and Family History
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Family_History))) +
+  geom_point(aes(shape = factor(Family_History)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Family History", color = "Family History") +
+  theme_minimal()
+
+### Interaction of BMI and Smoker
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Smoker))) +
+  geom_point(aes(shape = factor(Smoker)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Smoker", color = "Smoker") +
+  theme_minimal()
+
+### Interactionof BMI and Age
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Age_Factor))) +
+  geom_point(aes(shape = factor(Age_Factor)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Age", color = "Age Categories") +
+  theme_minimal()
+
+### Interaction of BMI and Systolic 
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Systolic_Factor))) +
+  geom_point(aes(shape = factor(Systolic_Factor)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Systolic BP", color = "Systolic Categories") +
+  theme_minimal()
+
+### Interaction of BMI and Cholesterol
+ggplot(data = diabetes, aes(x = BMI, y = logit, color = factor(Cholesterol_Factor))) +
+  geom_point(aes(shape = factor(Cholesterol_Factor)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "BMI", y = "Logit of Probability of Diabetes", title = "Interaction Graph of BMI and Cholesterol", color = "Cholesterol Categories") +
+  theme_minimal()
+```
+
+```{r}
+### Age Interaction Plots
+
+### Interaction of Age and Gender
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(Gender))) +
+  geom_point(aes(shape = factor(Gender)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and Gender", color = "Gender") +
+  theme_minimal()
+
+### Interaction of Age and Physical Activity
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(Physical_Activity))) +
+  geom_point(aes(shape = factor(Physical_Activity)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and Physical Activity", color = "Physical Activity") +
+  theme_minimal()
+
+### Interaction of Age and Family History
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(Family_History))) +
+  geom_point(aes(shape = factor(Family_History)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and Family History", color = "Family History") +
+  theme_minimal()
+
+### Interaction of Age and Smoker
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(Smoker))) +
+  geom_point(aes(shape = factor(Smoker)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and Smoker", color = "Smoker") +
+  theme_minimal()
+
+### Interaction of Age and BMI
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(BMI_Factor))) +
+  geom_point(aes(shape = factor(BMI_Factor)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and BMI", color = "BMI Categories") +
+  theme_minimal()
+
+### Interaction of Age and Systolic 
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(Systolic_Factor))) +
+  geom_point(aes(shape = factor(Systolic_Factor)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and Systolic BP", color = "Systolic Categories") +
+  theme_minimal()
+
+### Interaction of Age and Cholesterol
+ggplot(data = diabetes, aes(x = Age, y = logit, color = factor(Cholesterol_Factor))) +
+  geom_point(aes(shape = factor(Cholesterol_Factor)), alpha = 0.6) + 
+  guides(shape = FALSE) +
+  stat_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  scale_color_manual(values = c("green", "blue", "red", "purple")) + 
+  labs(x = "Age", y = "Logit of Probability of Diabetes", title = "Interaction Graph of Age and Cholesterol", color = "Cholesterol Categories") +
+  theme_minimal()
+```
+
+## Model Building
+
+**Base Model**
+```{r}
+#Base model with all of the main effects
+model <- glm(Diabetes_Status ~ Age + BMI + Gender + Smoker + Cholesterol +
+              Systolic_BP + Physical_Activity + Family_History,
+              data = diabetes, family = binomial)
+summary(model)
+```
+
+**Model 1**
+```{r}
+#Full model with interaction and quadratic terms
+model1 <- glm(Diabetes_Status ~ Age + BMI + Gender + Smoker + Cholesterol +
+              Systolic_BP + Physical_Activity + Family_History +
+              Smoker:Systolic_BP + Physical_Activity:Systolic_BP + BMI:Systolic_BP +
+              Age:Systolic_BP + Smoker:Cholesterol + Physical_Activity:Cholesterol +
+              BMI:Cholesterol + Systolic_BP:Cholesterol + Physical_Activity:BMI +
+              Smoker:BMI + Age:BMI + Smoker:Age +
+              I(BMI^3) + I(Systolic_BP^3),
+              data = diabetes, family = binomial)
+summary(model1)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(model1, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(model1, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Cholesterol, y = residuals(model1, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Cholesterol vs. Pearson Residuals", x = "Cholesterol", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(model1, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(model1), Sigma = vcov(model1), Terms = 2:length(coef(model1)))
+```
+
+**Model 2**
+```{r}
+#Removed quadratic terms
+model2 <- glm(Diabetes_Status ~ Age + BMI + Gender + Smoker + Cholesterol +
+              Systolic_BP + Physical_Activity + Family_History +
+              Smoker:Systolic_BP + Physical_Activity:Systolic_BP + BMI:Systolic_BP +
+              Age:Systolic_BP + Smoker:Cholesterol + Physical_Activity:Cholesterol +
+              BMI:Cholesterol + Systolic_BP:Cholesterol + Physical_Activity:BMI +
+              Smoker:BMI + Age:BMI + Smoker:Age,
+              data = diabetes, family = binomial)
+summary(model2)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(model2, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(model2, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Cholesterol, y = residuals(model2, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Cholesterol vs. Pearson Residuals", x = "Cholesterol", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(model2, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(model2), Sigma = vcov(model2), Terms = 2:length(coef(model2)))
+```
+
+**Model 3**
+```{r}
+#Removed interaction terms with p-value greater than 0.7
+model3 <- glm(Diabetes_Status ~ Age + BMI + Gender + Smoker + Cholesterol +
+              Systolic_BP + Physical_Activity + Family_History +
+              Smoker:Systolic_BP + Physical_Activity:Systolic_BP + BMI:Systolic_BP +
+              Age:Systolic_BP + Smoker:Cholesterol + BMI:Cholesterol +
+              Systolic_BP:Cholesterol + Physical_Activity:BMI + Smoker:BMI,
+              data = diabetes, family = binomial)
+summary(model3)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(model3, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(model3, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Cholesterol, y = residuals(model3, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Cholesterol vs. Pearson Residuals", x = "Cholesterol", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(model3, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(model3), Sigma = vcov(model3), Terms = 2:length(coef(model3)))
+```
+
+**Model 4**
+```{r}
+#Removed interaction terms with p-values greater than 0.5
+model4 <- glm(Diabetes_Status ~ Age + BMI + Gender + Smoker + Cholesterol +
+              Systolic_BP + Physical_Activity + Family_History +
+              Smoker:Systolic_BP + Physical_Activity:Systolic_BP + BMI:Systolic_BP +
+              Smoker:Cholesterol + Physical_Activity:BMI + Smoker:BMI,
+              data = diabetes, family = binomial)
+summary(model4)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(model4, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(model4, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Cholesterol, y = residuals(model4, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Cholesterol vs. Pearson Residuals", x = "Cholesterol", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(model4, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(model4), Sigma = vcov(model4), Terms = 2:length(coef(model4)))
+```
+
+**Model 5**
+```{r}
+#Removed interaction terms with p-value greater than 0.3
+model5 <- glm(Diabetes_Status ~ Age + BMI + Gender + Smoker + Cholesterol +
+              Systolic_BP + Physical_Activity + Family_History +
+              BMI:Systolic_BP + Smoker:BMI,
+              data = diabetes, family = binomial)
+summary(model5)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(model5, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(model5, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Cholesterol, y = residuals(model5, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Cholesterol vs. Pearson Residuals", x = "Cholesterol", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(model5, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(model5), Sigma = vcov(model5), Terms = 2:length(coef(model5)))
+```
+
+**Model 6**
+```{r}
+#Removed terms with p-value greater than 0.15
+model6 <- glm(Diabetes_Status ~ Age + BMI + Smoker + Systolic_BP +
+                   BMI:Systolic_BP + Smoker:BMI,
+                   data = diabetes, family = binomial)
+summary(model6)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(model6, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(model6, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(model6, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(model6), Sigma = vcov(model6), Terms = 2:length(coef(model6)))
+```
+
+**Model 7**
+```{r}
+#Reduced model 6, removed Smoker and BMI:Smoker
+reduced_model6 <- glm(Diabetes_Status ~ Age + BMI + Systolic_BP +
+                   BMI:Systolic_BP,
+                   data = diabetes, family = binomial)
+summary(reduced_model6)
+```
+
+**Linearity test**
+```{r}
+#Linearity test for each numeric variable
+ggplot(diabetes, aes(x = Age, y = residuals(reduced_model6, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Age vs. Pearson Residuals", x = "Age", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = BMI, y = residuals(reduced_model6, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "BMI vs. Pearson Residuals", x = "BMI", y = "Pearson Residuals")
+
+ggplot(diabetes, aes(x = Systolic_BP, y = residuals(reduced_model6, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Systolic BP vs. Pearson Residuals", x = "Systolic BP", y = "Pearson Residuals")
+```
+
+**Wald Test**
+```{r}
+#Global Wald test to determine presense of significant coefficients
+wald.test(b = coef(reduced_model6), Sigma = vcov(reduced_model6), Terms = 2:length(coef(reduced_model6)))
+```
+
+**Likelihood Ratio Test**
+```{r}
+#Likelihood ratio test between full and reduced model 6
+full_l <- logLik(model6)
+reduced_l <- logLik(reduced_model6)
+
+teststat <- -2 * (as.numeric(reduced_l) - as.numeric(full_l))
+p_val <- pchisq(teststat, df = 1, lower.tail = FALSE)
+p_val
+```
+
+## Final Model
+```{r}
+#Final model is full model 6
+final_model <- glm(Diabetes_Status ~ Age + BMI + Smoker + Systolic_BP +
+                   BMI:Systolic_BP + Smoker:BMI,
+                   data = diabetes, family = binomial)
+summary(final_model)
+```
+
